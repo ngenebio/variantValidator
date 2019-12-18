@@ -1018,6 +1018,141 @@ class Mixin(vvMixinConverters.Mixin):
         # Return the resulting reference sequence and error message
         return reference
 
+    def genes_by_region(self, build, chr, region):
+        """
+        Fetch genes for genomic region, specific to genome build and chromosome
+        :param build:
+        :param chr:
+        :param region:
+        :return:
+        """
+
+        # validate region
+        if '-' not in region:
+            return {'error': 'Please enter a genomic region range (48187404-48207246)'}
+
+        region = region.split('-')
+
+        # validate chr
+        if 'chr' in chr:
+            chr_ac = seq_data.to_accession(chr, build)
+        elif not chr.startswith('NC_'):
+            return {'error': 'Please enter a valid chromosome id or accession (chr17, NC_000017.10)'}
+        else:
+            chr_ac = chr
+
+        # ensure chr is valid to specified build
+        chr_num = seq_data.to_chr_num_refseq(chr_ac, build)
+
+        if chr_num is None:
+            return {'error': chr + ' doesn\'t exist in build ' + build}
+
+        # get all the transcripts of the specified reason, to be grouped by gene
+        transcripts_in_region = self.hdp.get_tx_for_region(chr_ac, 'splign', int(region[1]), int(region[0]))
+        genes = []
+
+        for tx in transcripts_in_region:
+            tx_symbol = self.db.get_gene_symbol_from_transcript_id(tx['tx_ac'])
+            existing_gene = ([i for i in genes if i['symbol'] == tx_symbol] or [None])[0]
+
+            # ensure genes haven't been mapped already. get_tx_for_region is being used to find genes in the same
+            # region so transcripts of the same gene can be skipped (all transcript data needed for the gene is
+            # retreived in gene2transcripts)
+            if existing_gene is None:
+
+                all_tx_for_gene = self.gene2transcripts(tx_symbol)
+
+                if 'error' in all_tx_for_gene:
+                    return all_tx_for_gene
+
+                gene = {'name': all_tx_for_gene['current_name'],
+                        'symbol': tx_symbol,
+                        'hgnc': self.db.get_stable_gene_id_info(tx_symbol)[2],
+                        'genomic_position': {
+                            'chr': chr_num,
+                            'build': build,
+                            'accession': chr_ac,
+                            # 'start': 50133737, # get from gene info
+                            # 'end': 50150677 # get from gene info
+                        },
+                        'transcripts': self._get_exons_for_transcripts(all_tx_for_gene, chr_ac)
+                        }
+
+                genes.append(gene)
+
+        return genes
+
+    def gene_information(self, build, chr, gene):
+        """
+            Fetch gene information
+            :param build:
+            :param chr:
+            :param gene:
+            :return:
+            """
+
+        # validate chr
+        if 'chr' in chr:
+            chr_ac = seq_data.to_accession(chr, build)
+        elif not chr.startswith('NC_'):
+            return {'error': 'Please enter a valid chromosome id or accession (chr17, NC_000017.10)'}
+        else:
+            chr_ac = chr
+
+        # ensure chr is valid to specified build
+        chr_num = seq_data.to_chr_num_refseq(chr_ac, build)
+
+        if chr_num is None:
+            return {'error': chr + ' doesn\'t exist in build ' + build}
+
+        all_tx_for_gene = self.gene2transcripts(gene)
+
+        if 'error' in all_tx_for_gene:
+            return all_tx_for_gene
+
+        return {'name': all_tx_for_gene['current_name'],
+                'symbol': all_tx_for_gene['current_symbol'],
+                'hgnc': self.db.get_stable_gene_id_info(all_tx_for_gene['current_symbol'])[2],
+                'genomic_position': {
+                    'chr': chr_num,
+                    'build': build,
+                    'accession': chr_ac,
+                    # 'start': 50133737, # get from gene info
+                    # 'end': 50150677 # get from gene info
+                },
+                'transcripts': self._get_exons_for_transcripts(all_tx_for_gene, chr_ac)
+                }
+
+    def _get_exons_for_transcripts(self, all_tx_for_gene, ch_ac):
+        transcripts = []
+
+        # loop through transcripts and get exons for each
+        for tx in all_tx_for_gene['transcripts']:
+            # don't add transcript if no exons exist
+            try:
+                tx_exons = self.hdp.get_tx_exons(tx['reference'], ch_ac, 'splign')
+            except vvhgvs.exceptions.HGVSDataNotAvailableError:
+                continue
+
+            transcript = {
+                'coding_start': tx['coding_start'],
+                'coding_end':  tx['coding_end'],
+                'exon_positions': [],
+                'strand': tx_exons[0]['alt_strand'],
+                'transcript': tx['reference'],
+                'txstart': tx_exons[0]['alt_start_i'],
+                'txend': tx_exons[-1]['alt_end_i'],
+                # "sequence": "......",
+                # "complement": "....."
+            }
+
+            for i, ex in enumerate(tx_exons):
+                transcript['exon_positions'].append([ex['alt_start_i'], ex['alt_end_i'], i+1])
+
+            transcripts.append(transcript)
+
+        return transcripts
+
     def _get_transcript_info(self, variant):
         """
         Collect transcript information from a non-genomic variant.
