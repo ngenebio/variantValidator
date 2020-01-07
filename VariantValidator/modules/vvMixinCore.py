@@ -1033,6 +1033,12 @@ class Mixin(vvMixinConverters.Mixin):
 
         region = region.split('-')
 
+        try:
+            region[0] = int(region[0])
+            region[1] = int(region[1])
+        except ValueError:
+            return {'error': 'Please enter a genomic region range (48187404-48207246)'}
+
         # validate chr
         if 'chr' in chr:
             chr_ac = seq_data.to_accession(chr, build)
@@ -1047,8 +1053,8 @@ class Mixin(vvMixinConverters.Mixin):
         if chr_num is None:
             return {'error': chr + ' doesn\'t exist in build ' + build}
 
-        # get all the transcripts of the specified reason, to be grouped by gene
-        transcripts_in_region = self.hdp.get_tx_for_region(chr_ac, 'splign', int(region[1]), int(region[0]))
+        # get all the transcripts of the specified region, to be grouped by gene
+        transcripts_in_region = self.hdp.get_tx_for_region(chr_ac, 'splign', region[1], region[0])
         genes = []
 
         for tx in transcripts_in_region:
