@@ -1040,7 +1040,7 @@ class Mixin(vvMixinConverters.Mixin):
             return {'error': 'Please enter a genomic region range (48187404-48207246)'}
 
         # validate chr
-        if 'chr' in chr:
+        if chr.startswith('chr'):
             chr_ac = seq_data.to_accession(chr, build)
         elif not chr.startswith('NC_'):
             return {'error': 'Please enter a valid chromosome id or accession (chr17, NC_000017.10)'}
@@ -1058,22 +1058,22 @@ class Mixin(vvMixinConverters.Mixin):
         genes = []
 
         for tx in transcripts_in_region:
-            tx_symbol = self.db.get_gene_symbol_from_transcript_id(tx['tx_ac'])
-            existing_gene = ([i for i in genes if i['symbol'] == tx_symbol] or [None])[0]
+            gene_symbol = self.db.get_gene_symbol_from_transcript_id(tx['tx_ac'])
+            existing_gene = ([i for i in genes if i['symbol'] == gene_symbol] or [None])[0]
 
             # ensure genes haven't been mapped already. get_tx_for_region is being used to find genes in the same
             # region so transcripts of the same gene can be skipped (all transcript data needed for the gene is
             # retreived in gene2transcripts)
             if existing_gene is None:
 
-                all_tx_for_gene = self.gene2transcripts(tx_symbol)
+                all_tx_for_gene = self.gene2transcripts(gene_symbol)
 
                 if 'error' in all_tx_for_gene:
                     return all_tx_for_gene
 
                 gene = {'name': all_tx_for_gene['current_name'],
-                        'symbol': tx_symbol,
-                        'hgnc': self.db.get_stable_gene_id_info(tx_symbol)[2],
+                        'symbol': all_tx_for_gene['current_symbol'],
+                        'hgnc': self.db.get_stable_gene_id_info(all_tx_for_gene['current_symbol'])[2],
                         'genomic_position': {
                             'chr': chr_num,
                             'build': build,
@@ -1098,7 +1098,7 @@ class Mixin(vvMixinConverters.Mixin):
             """
 
         # validate chr
-        if 'chr' in chr:
+        if chr.startswith('chr'):
             chr_ac = seq_data.to_accession(chr, build)
         elif not chr.startswith('NC_'):
             return {'error': 'Please enter a valid chromosome id or accession (chr17, NC_000017.10)'}
