@@ -145,6 +145,7 @@ class Database(vvDBInsert.Mixin):
         """
         Search Entrez for corresponding record for the RefSeq ID
         """
+        return
 
         try:
             record = validator.entrez_efetch(db="nucleotide", id=accession, rettype="gb", retmode="text")
