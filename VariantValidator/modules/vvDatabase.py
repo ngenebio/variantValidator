@@ -51,7 +51,10 @@ class Database(vvDBInsert.Mixin):
         :param validator:
         :return:
         """
-        self.update_transcript_info_record(accession, validator)
+        try:
+            self.update_transcript_info_record(accession, validator)
+        except Exception as e:
+                    logger.debug("Except pass, %s", e)                    
         entry = self.in_entries(accession, 'transcript_info')
         return entry
 
