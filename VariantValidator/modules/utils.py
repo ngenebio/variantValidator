@@ -26,19 +26,19 @@ def hgnc_rest(path):
         'error': 'false'
     }
     # HGNC server
-    headers = {
-        'Accept': 'application/json',
-    }
-    domain = 'http://rest.genenames.org'
-    url = domain + path
-    r = requests.get(url, headers=headers)
+    #headers = {
+    #    'Accept': 'application/json',
+    #}
+    #domain = 'http://rest.genenames.org'
+    #url = domain + path
+    #r = requests.get(url, headers=headers)
 
-    if r.status_code == 200:
+    #if r.status_code == 200:
         # assume that content is a json reply
         # parse content with the json module
-        data['record'] = r.json()
-    else:
-        data['error'] = "Unable to contact the HGNC database: Please try again later"
+    #    data['record'] = r.json()
+    #else:
+    #    data['error'] = "Unable to contact the HGNC database: Please try again later"
     return data
 
 
